@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 )
 
 func main() {
@@ -14,11 +13,12 @@ func main() {
 	// Register catch all / root route
 	// mux.HandleFunc("/", rootHandler)
 
+	mux.Handle("/", http.FileServer(http.Dir(".")))
+	mux.Handle("/assets", http.FileServer(http.Dir("./assets")))
+
 	server := &http.Server{
 		Addr: ":8080",
 		Handler: mux,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
 	}
 
 	fmt.Println("Starting server on port 8080...")
