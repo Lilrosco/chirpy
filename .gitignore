@@ -32,4 +32,5 @@ go.work.sum
 # .vscode/
 
 out
+chirpy
 chirpy-server
