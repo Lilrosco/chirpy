@@ -29,6 +29,10 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
         Email string `json:"email"`
     }
 
+	type response struct {
+		User
+	}
+
 	decoder := json.NewDecoder(r.Body)
     params := parameters{}
     err := decoder.Decode(&params)
@@ -45,22 +49,24 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, err := cfg.dbQueries.CreateUser(r.Context(), email)
+	user, err := cfg.db.CreateUser(r.Context(), email)
 
 	if pqErr, ok := errors.AsType[*pq.Error](err); ok {
 		if pqErr.Code == errUniqueViolation {
 			respondWithError(w, http.StatusBadRequest, fmt.Sprintf("User with email: %s already exists\n", email), nil)
 			return
 		} else if err != nil {
-			respondWithError(w, http.StatusBadRequest, "could not create user", err)
+			respondWithError(w, http.StatusInternalServerError, "could not create user", err)
 			return
 		}
 	}
 
-	respondWithJSON(w, http.StatusCreated, User{
-		ID: user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email: user.Email,
+	respondWithJSON(w, http.StatusCreated, response{
+		User: User{
+			ID: user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email: user.Email,
+		},
 	})
 }

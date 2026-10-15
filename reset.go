@@ -6,16 +6,16 @@ import (
 )
 
 func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
-	if cfg.appEnv != "dev" {
+	if cfg.platform != "dev" {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("403 Forbidden!"))
+		w.Write([]byte("403 Forbidden, only allowed in dev environment!"))
 		return
 	}
 
-	err := cfg.dbQueries.DeleteAllUsers(r.Context())
+	err := cfg.db.DeleteAllUsers(r.Context())
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not delete all users", err)
+		respondWithError(w, http.StatusInternalServerError, "could not reset database", err)
 		return
 	}
 
@@ -27,6 +27,6 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
     }
 
 	respondWithJSON(w, http.StatusOK, returnVals{
-		Result: "Hits reset to 0 and Users Table reset!",
+		Result: "Hits reset to 0 and Datbase reset!",
 	})
 }

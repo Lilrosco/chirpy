@@ -18,16 +18,26 @@ const errUniqueViolation = "23505"
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbQueries *database.Queries
-	appEnv string
+	db *database.Queries
+	platform string
 }
 
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
+
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
-	appEnv := os.Getenv("PLATFORM")
+	platform := os.Getenv("PLATFORM")
+
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
+
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
+	}
+
 	db, err := sql.Open("postgres", dbURL)
 
 	if err != nil {
@@ -44,16 +54,17 @@ func main() {
 
 	apiConfig := &apiConfig{
 		fileserverHits: atomic.Int32{},
-		dbQueries: dbQueries,
-		appEnv: appEnv,
+		db: dbQueries,
+		platform: platform,
 	}
 
 	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
+	mux.HandleFunc("POST /api/chirps", apiConfig.handlerCreateChirp)
+	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
+	mux.HandleFunc("GET /api/chirps", apiConfig.handlerGetChirps)
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	mux.HandleFunc("GET /admin/metrics", apiConfig.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiConfig.handlerReset)
-	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidation)
-	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
 
 	server := &http.Server{
 		Addr: ":" + port,
