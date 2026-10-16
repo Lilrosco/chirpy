@@ -62,6 +62,7 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiConfig.handlerCreateChirp)
 	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
 	mux.HandleFunc("GET /api/chirps", apiConfig.handlerGetChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConfig.handlerGetSingleChirp)
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	mux.HandleFunc("GET /admin/metrics", apiConfig.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiConfig.handlerReset)
@@ -71,7 +72,7 @@ func main() {
 		Handler: mux,
 	}
 
-	fmt.Println("Starting server on port 8080...")
+	log.Println("Starting server on port 8080...")
 
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)

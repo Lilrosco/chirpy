@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
 	"time"
@@ -38,14 +39,15 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
     err := decoder.Decode(&params)
 
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "couldn't decode parameters", err)
+		log.Printf("Could not decode parameters: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
     }
 
 	email := params.Email
 
 	if !validateEmail(email) {
-		respondWithError(w, http.StatusBadRequest, "email address not formatted correctly", nil)
+		respondWithError(w, http.StatusBadRequest, "Email address not formatted correctly", nil)
 		return
 	}
 
@@ -56,7 +58,8 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 			respondWithError(w, http.StatusBadRequest, fmt.Sprintf("User with email: %s already exists\n", email), nil)
 			return
 		} else if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "could not create user", err)
+			log.Printf("Could not create user: %v\n", err)
+			respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 			return
 		}
 	}

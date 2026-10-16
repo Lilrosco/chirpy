@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -34,7 +36,8 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
     err := decoder.Decode(&params)
 
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "couldn't decode parameters", err)
+		log.Printf("Could not decode parameters: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
     }
 
@@ -54,7 +57,8 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not create chirp", err)
+		log.Printf("Could not create chirp: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
 	}
 
@@ -73,7 +77,8 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 	dbChirps, err := cfg.db.GetChirps(r.Context())
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not fetch all chirps", err)
+		log.Printf("Could not fetch all chirps: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
 	}
 
@@ -90,6 +95,43 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 	}
 
     respondWithJSON(w, http.StatusOK, chirps)
+}
+
+func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Request) {
+	type response struct {
+		Chirp
+	}
+
+	chirpID := r.PathValue("chirpID")
+	id, err := uuid.Parse(chirpID)
+
+	if err != nil {
+		log.Printf("Could not parse passed in UUID: %s | %v\n", chirpID, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+	}
+
+	dbChirp, err := cfg.db.GetChirpByID(r.Context(), id)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "Chirp with specified ID not found", err)
+			return
+		}
+
+		log.Printf("Could not fetch chirp with ID: %s | %v\n", chirpID, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+    respondWithJSON(w, http.StatusOK, response{
+		Chirp: Chirp{
+			ID: dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			Body: dbChirp.Body,
+			UserID: dbChirp.UserID,
+		},
+	})
 }
 
 func validateChirp(body string) (string, error) {

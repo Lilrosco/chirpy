@@ -15,7 +15,8 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	err := cfg.db.DeleteAllUsers(r.Context())
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not reset database", err)
+		log.Printf("Could not reset database: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
 	}
 
