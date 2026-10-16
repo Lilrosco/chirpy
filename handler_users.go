@@ -27,22 +27,22 @@ func validateEmail(email string) bool {
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-        Email string `json:"email"`
-    }
+		Email string `json:"email"`
+	}
 
 	type response struct {
 		User
 	}
 
 	decoder := json.NewDecoder(r.Body)
-    params := parameters{}
-    err := decoder.Decode(&params)
+	params := parameters{}
+	err := decoder.Decode(&params)
 
-    if err != nil {
+	if err != nil {
 		log.Printf("Could not decode parameters: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
-    }
+	}
 
 	email := params.Email
 

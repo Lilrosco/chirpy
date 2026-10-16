@@ -24,8 +24,8 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Store(0)
 
 	type returnVals struct {
-        Result string `json:"result"`
-    }
+		Result string `json:"result"`
+	}
 
 	respondWithJSON(w, http.StatusOK, returnVals{
 		Result: "Hits reset to 0 and Datbase reset!",

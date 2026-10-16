@@ -23,23 +23,23 @@ type Chirp struct {
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-        Body string `json:"body"`
+		Body string `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
-    }
+	}
 
 	type response struct {
 		Chirp
 	}
 
 	decoder := json.NewDecoder(r.Body)
-    params := parameters{}
-    err := decoder.Decode(&params)
+	params := parameters{}
+	err := decoder.Decode(&params)
 
-    if err != nil {
+	if err != nil {
 		log.Printf("Could not decode parameters: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
-    }
+	}
 
 	cleanedBody, err := validateChirp(params.Body)
 
@@ -62,7 +62,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-    respondWithJSON(w, http.StatusCreated, response{
+	respondWithJSON(w, http.StatusCreated, response{
 		Chirp: Chirp{
 			ID: chirp.ID,
 			CreatedAt: chirp.CreatedAt,
@@ -94,7 +94,7 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-    respondWithJSON(w, http.StatusOK, chirps)
+	respondWithJSON(w, http.StatusOK, chirps)
 }
 
 func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-    respondWithJSON(w, http.StatusOK, response{
+	respondWithJSON(w, http.StatusOK, response{
 		Chirp: Chirp{
 			ID: dbChirp.ID,
 			CreatedAt: dbChirp.CreatedAt,
