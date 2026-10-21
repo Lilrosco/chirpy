@@ -9,6 +9,8 @@ import (
 	"net/mail"
 	"time"
 
+	"github.com/Lilrosco/chirpy/internal/auth"
+	"github.com/Lilrosco/chirpy/internal/database"
 	"github.com/lib/pq"
 	"github.com/google/uuid"
 )
@@ -28,6 +30,7 @@ func validateEmail(email string) bool {
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	type response struct {
@@ -45,13 +48,28 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	email := params.Email
+	password := params.Password
 
 	if !validateEmail(email) {
 		respondWithError(w, http.StatusBadRequest, "Email address not formatted correctly", nil)
 		return
 	}
 
-	user, err := cfg.db.CreateUser(r.Context(), email)
+	hashed_password, err := auth.HashPassword(password)
+
+	if err != nil {
+		log.Printf("Could not hash password for email: %s | %v\n", email, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+	user, err := cfg.db.CreateUser(
+		r.Context(),
+		database.CreateUserParams{
+			Email: email, 
+			HashedPassword: hashed_password,
+		},
+	)
 
 	if pqErr, ok := errors.AsType[*pq.Error](err); ok {
 		if pqErr.Code == errUniqueViolation {
