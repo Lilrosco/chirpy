@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Lilrosco/chirpy/internal/auth"
 )
@@ -14,10 +15,13 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
 		Password string `json:"password"`
+		ExpiresInSeconds int `json:"expires_in_seconds"`
 	}
 
 	type response struct {
 		User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -32,6 +36,8 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	email := params.Email
 	password := params.Password
+	expiresInSeconds := params.ExpiresInSeconds
+	expiresIn := time.Duration(1 * time.Hour)
 
 	if !validateEmail(email) {
 		respondWithError(w, http.StatusBadRequest, "Email address not formatted correctly", nil)
@@ -64,6 +70,18 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if expiresInSeconds > 0 && expiresInSeconds < int((1 * time.Hour).Seconds()) {
+		expiresIn = time.Duration(expiresInSeconds) * time.Second
+	}
+
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, expiresIn)
+
+	if err != nil {
+		log.Printf("Error making JWT for user: %s | %v\n", user.ID, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
 			ID: user.ID,
@@ -71,5 +89,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: user.UpdatedAt,
 			Email: user.Email,
 		},
+		Token: accessToken,
 	})
 }
