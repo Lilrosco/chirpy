@@ -11,8 +11,8 @@ import (
 
 	"github.com/Lilrosco/chirpy/internal/auth"
 	"github.com/Lilrosco/chirpy/internal/database"
-	"github.com/lib/pq"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type User struct {
@@ -29,7 +29,7 @@ func validateEmail(email string) bool {
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
@@ -66,7 +66,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	user, err := cfg.db.CreateUser(
 		r.Context(),
 		database.CreateUserParams{
-			Email: email, 
+			Email:          email,
 			HashedPassword: hashed_password,
 		},
 	)
@@ -84,10 +84,85 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 
 	respondWithJSON(w, http.StatusCreated, response{
 		User: User{
-			ID: user.ID,
+			ID:        user.ID,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
-			Email: user.Email,
+			Email:     user.Email,
+		},
+	})
+}
+
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	type response struct {
+		User
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Missing authorization token", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized!", err)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err = decoder.Decode(&params)
+
+	if err != nil {
+		log.Printf("Could not decode parameters: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+	email := params.Email
+	password := params.Password
+
+	if !validateEmail(email) {
+		respondWithError(w, http.StatusBadRequest, "Email address not formatted correctly", nil)
+		return
+	}
+
+	hashed_password, err := auth.HashPassword(password)
+
+	if err != nil {
+		log.Printf("Could not hash password for email: %s | %v\n", email, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+	user, err := cfg.db.UpdateUser(
+		r.Context(),
+		database.UpdateUserParams{
+			Email:          email,
+			HashedPassword: hashed_password,
+			ID:             userID,
+		},
+	)
+
+	if err != nil {
+		log.Printf("Could not update user: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, response{
+		User: User{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			Email:     user.Email,
 		},
 	})
 }

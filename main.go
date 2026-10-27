@@ -68,6 +68,7 @@ func main() {
 	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 	mux.HandleFunc("POST /api/chirps", apiConfig.handlerCreateChirp)
 	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
+	mux.HandleFunc("PUT /api/users", apiConfig.handlerUpdateUser)
 	mux.HandleFunc("POST /api/login", apiConfig.handlerLogin)
 	mux.HandleFunc("POST /api/refresh", apiConfig.handlerRefreshToken)
 	mux.HandleFunc("POST /api/revoke", apiConfig.handlerRevokeToken)
