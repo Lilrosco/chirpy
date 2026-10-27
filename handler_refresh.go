@@ -15,7 +15,7 @@ func (cfg *apiConfig) handlerRefreshToken(w http.ResponseWriter, r *http.Request
 	token, err := auth.GetBearerToken(r.Header)
 
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Missing authorization", err)
+		respondWithError(w, http.StatusBadRequest, "Missing authorization token!", err)
 		return
 	}
 

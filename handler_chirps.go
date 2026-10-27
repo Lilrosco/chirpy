@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Lilrosco/chirpy/internal/auth"
 	"github.com/Lilrosco/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -31,17 +30,9 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		Chirp
 	}
 
-	token, err := auth.GetBearerToken(r.Header)
+	userID, err := cfg.getUserIDFromBearerToken(w, r)
 
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Missing authorization", err)
-		return
-	}
-
-	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
-
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Unauthorized!", err)
 		return
 	}
 
@@ -65,7 +56,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	chirp, err := cfg.db.CreateChirp(
 		r.Context(),
 		database.CreateChirpParams{
-			Body: cleanedBody,
+			Body:   cleanedBody,
 			UserID: userID,
 		},
 	)
@@ -78,11 +69,11 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, http.StatusCreated, response{
 		Chirp: Chirp{
-			ID: chirp.ID,
+			ID:        chirp.ID,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
-			Body: chirp.Body,
-			UserID: chirp.UserID,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
 		},
 	})
 }
@@ -100,11 +91,11 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 
 	for _, chirp := range dbChirps {
 		chirps = append(chirps, Chirp{
-			ID: chirp.ID,
+			ID:        chirp.ID,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
-			Body: chirp.Body,
-			UserID: chirp.UserID,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
 		})
 	}
 
@@ -116,15 +107,15 @@ func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Reque
 		Chirp
 	}
 
-	chirpID := r.PathValue("chirpID")
-	id, err := uuid.Parse(chirpID)
+	chirpIDStr := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpIDStr)
 
 	if err != nil {
-		log.Printf("Could not parse passed in UUID: %s | %v\n", chirpID, err)
+		log.Printf("Could not parse passed in UUID: %s | %v\n", chirpIDStr, err)
 		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 	}
 
-	dbChirp, err := cfg.db.GetChirpByID(r.Context(), id)
+	dbChirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -132,20 +123,62 @@ func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		log.Printf("Could not fetch chirp with ID: %s | %v\n", chirpID, err)
+		log.Printf("Could not fetch chirp with ID: %s | %v\n", chirpIDStr, err)
 		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
 		return
 	}
 
 	respondWithJSON(w, http.StatusOK, response{
 		Chirp: Chirp{
-			ID: dbChirp.ID,
+			ID:        dbChirp.ID,
 			CreatedAt: dbChirp.CreatedAt,
 			UpdatedAt: dbChirp.UpdatedAt,
-			Body: dbChirp.Body,
-			UserID: dbChirp.UserID,
+			Body:      dbChirp.Body,
+			UserID:    dbChirp.UserID,
 		},
 	})
+}
+
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	userID, err := cfg.getUserIDFromBearerToken(w, r)
+
+	if err != nil {
+		return
+	}
+
+	chirpIDStr := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpIDStr)
+
+	if err != nil {
+		log.Printf("Could not parse passed in UUID: %s | %v\n", chirpIDStr, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+	}
+
+	chirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "Chirp with specified ID not found", err)
+			return
+		}
+
+		log.Printf("Could not fetch chirp with ID: %s | %v\n", chirpIDStr, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	} else if chirp.UserID != userID {
+		respondWithError(w, http.StatusForbidden, "Forbidden", errors.New("User if not the author of chirp"))
+		return
+	}
+
+	err = cfg.db.DeleteChirp(r.Context(), chirpID)
+
+	if err != nil {
+		log.Printf("Could not delete chirp with ID: %s | %v\n", chirpIDStr, err)
+		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusNoContent, nil)
 }
 
 func validateChirp(body string) (string, error) {
@@ -163,10 +196,10 @@ func validateChirp(body string) (string, error) {
 }
 
 func cleanBody(body string) string {
-	badWords := map[string]struct{} {
-		"kerfuffle" : {},
-		"sharbert" : {},
-		"fornax" : {},
+	badWords := map[string]struct{}{
+		"kerfuffle": {},
+		"sharbert":  {},
+		"fornax":    {},
 	}
 	words := strings.Split(body, " ")
 

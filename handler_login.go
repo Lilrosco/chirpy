@@ -10,6 +10,7 @@ import (
 
 	"github.com/Lilrosco/chirpy/internal/auth"
 	"github.com/Lilrosco/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 var (
@@ -106,4 +107,22 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Token:        accessToken,
 		RefreshToken: refreshToken,
 	})
+}
+
+func (cfg *apiConfig) getUserIDFromBearerToken(w http.ResponseWriter, r *http.Request) (uuid.UUID, error) {
+	token, err := auth.GetBearerToken(r.Header)
+
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Could not find JWT!", err)
+		return uuid.Nil, err
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthorized!", err)
+		return uuid.Nil, err
+	}
+
+	return userID, nil
 }
