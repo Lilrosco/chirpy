@@ -18,9 +18,9 @@ const errUniqueViolation = "23505"
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	db *database.Queries
-	platform string
-	jwtSecret string
+	db             *database.Queries
+	platform       string
+	jwtSecret      string
 }
 
 func main() {
@@ -60,15 +60,17 @@ func main() {
 
 	apiConfig := &apiConfig{
 		fileserverHits: atomic.Int32{},
-		db: dbQueries,
-		platform: platform,
-		jwtSecret: jwtSecret,
+		db:             dbQueries,
+		platform:       platform,
+		jwtSecret:      jwtSecret,
 	}
 
 	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 	mux.HandleFunc("POST /api/chirps", apiConfig.handlerCreateChirp)
 	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
 	mux.HandleFunc("POST /api/login", apiConfig.handlerLogin)
+	mux.HandleFunc("POST /api/refresh", apiConfig.handlerRefreshToken)
+	mux.HandleFunc("POST /api/revoke", apiConfig.handlerRevokeToken)
 	mux.HandleFunc("GET /api/chirps", apiConfig.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConfig.handlerGetSingleChirp)
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
@@ -76,7 +78,7 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", apiConfig.handlerReset)
 
 	server := &http.Server{
-		Addr: ":" + port,
+		Addr:    ":" + port,
 		Handler: mux,
 	}
 

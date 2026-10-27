@@ -9,13 +9,18 @@ import (
 	"time"
 
 	"github.com/Lilrosco/chirpy/internal/auth"
+	"github.com/Lilrosco/chirpy/internal/database"
+)
+
+var (
+	accessTokenExpiresIn  = time.Hour
+	refreshTokenExpiresIn = 60 * 24 * time.Hour
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
-		ExpiresInSeconds int `json:"expires_in_seconds"`
 	}
 
 	type response struct {
@@ -36,8 +41,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	email := params.Email
 	password := params.Password
-	expiresInSeconds := params.ExpiresInSeconds
-	expiresIn := time.Duration(1 * time.Hour)
 
 	if !validateEmail(email) {
 		respondWithError(w, http.StatusBadRequest, "Email address not formatted correctly", nil)
@@ -59,22 +62,12 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	match, err := auth.CheckPasswordHash(password, user.HashedPassword)
 
-	if err != nil {
-		log.Printf("Error checking password hash for user_id: %s | %v\n", user.ID, err)
-		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
-		return
-	}
-
-	if !match {
+	if err != nil || !match {
 		respondWithError(w, http.StatusUnauthorized, "Incorrect email or password", err)
 		return
 	}
 
-	if expiresInSeconds > 0 && expiresInSeconds < int((1 * time.Hour).Seconds()) {
-		expiresIn = time.Duration(expiresInSeconds) * time.Second
-	}
-
-	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, expiresIn)
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, accessTokenExpiresIn)
 
 	if err != nil {
 		log.Printf("Error making JWT for user: %s | %v\n", user.ID, err)
@@ -82,13 +75,35 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	refreshToken := auth.MakeRefreshToken()
+
+	_, err = cfg.db.CreateRefreshToken(
+		r.Context(),
+		database.CreateRefreshTokenParams{
+			Token:  refreshToken,
+			UserID: user.ID,
+			ExpiresAt: sql.NullTime{
+				Time:  time.Now().Add(refreshTokenExpiresIn),
+				Valid: true,
+			},
+			RevokedAt: sql.NullTime{},
+		},
+	)
+
+	if err != nil {
+		log.Printf("Could not create refresh token: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't save refresh token", err)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
-			ID: user.ID,
+			ID:        user.ID,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
-			Email: user.Email,
+			Email:     user.Email,
 		},
-		Token: accessToken,
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	})
 }

@@ -28,6 +28,6 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, returnVals{
-		Result: "Hits reset to 0 and Datbase reset!",
+		Result: "Hits reset to 0 and Database reset!",
 	})
 }
