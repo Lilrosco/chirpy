@@ -76,6 +76,7 @@ func main() {
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConfig.handlerGetSingleChirp)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiConfig.handlerDeleteChirp)
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("POST /api/polka/webhooks", apiConfig.handlerPolkaWebhook)
 	mux.HandleFunc("GET /admin/metrics", apiConfig.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiConfig.handlerReset)
 

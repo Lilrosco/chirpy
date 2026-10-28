@@ -113,6 +113,7 @@ func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		log.Printf("Could not parse passed in UUID: %s | %v\n", chirpIDStr, err)
 		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		return
 	}
 
 	dbChirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)
@@ -151,7 +152,8 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 
 	if err != nil {
 		log.Printf("Could not parse passed in UUID: %s | %v\n", chirpIDStr, err)
-		respondWithError(w, http.StatusInternalServerError, "Internal Server Error", err)
+		respondWithError(w, http.StatusBadRequest, "Invalid Chirp ID", err)
+		return
 	}
 
 	chirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)
