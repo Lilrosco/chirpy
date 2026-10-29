@@ -21,6 +21,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	jwtSecret      string
+	polkaAPIKey    string
 }
 
 func main() {
@@ -31,6 +32,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaAPIKey := os.Getenv("POLKA_API_KEY")
 
 	if dbURL == "" {
 		log.Fatal("DB_URL must be set")
@@ -42,6 +44,10 @@ func main() {
 
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET must be set")
+	}
+
+	if polkaAPIKey == "" {
+		log.Fatal("POLKA_API_KEY must be set")
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -63,20 +69,29 @@ func main() {
 		db:             dbQueries,
 		platform:       platform,
 		jwtSecret:      jwtSecret,
+		polkaAPIKey:    polkaAPIKey,
 	}
 
-	mux.Handle("/app/", apiConfig.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
-	mux.HandleFunc("POST /api/chirps", apiConfig.handlerCreateChirp)
-	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
-	mux.HandleFunc("PUT /api/users", apiConfig.handlerUpdateUser)
+	fsHandler := apiConfig.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+
+	mux.Handle("/app/", fsHandler)
+
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiConfig.handlerPolkaWebhook)
+
 	mux.HandleFunc("POST /api/login", apiConfig.handlerLogin)
 	mux.HandleFunc("POST /api/refresh", apiConfig.handlerRefreshToken)
 	mux.HandleFunc("POST /api/revoke", apiConfig.handlerRevokeToken)
+
+	mux.HandleFunc("POST /api/users", apiConfig.handlerCreateUser)
+	mux.HandleFunc("PUT /api/users", apiConfig.handlerUpdateUser)
+
+	mux.HandleFunc("POST /api/chirps", apiConfig.handlerCreateChirp)
 	mux.HandleFunc("GET /api/chirps", apiConfig.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConfig.handlerGetSingleChirp)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiConfig.handlerDeleteChirp)
-	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("POST /api/polka/webhooks", apiConfig.handlerPolkaWebhook)
+
 	mux.HandleFunc("GET /admin/metrics", apiConfig.handlerMetrics)
 	mux.HandleFunc("POST /admin/reset", apiConfig.handlerReset)
 

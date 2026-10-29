@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,11 +11,14 @@ import (
 	"time"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 const tokenAccessType = "chirpy-access"
+
+var ErrNoAuthHeaderIncluded = errors.New("no auth header included in request")
+var ErrMalformedHeader = errors.New("Malformed Authorization Header")
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
@@ -29,7 +33,7 @@ func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (str
 
 func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 	claims := jwt.RegisteredClaims{}
-	
+
 	parsedToken, err := jwt.ParseWithClaims(
 		tokenString,
 		&claims,
@@ -66,7 +70,7 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		log.Printf("Error parsing UUID: %v", err)
 		return uuid.Nil, err
 	}
-		
+
 	return parsedUUID, nil
 }
 
@@ -93,16 +97,24 @@ func CheckPasswordHash(password, hash string) (bool, error) {
 }
 
 func GetBearerToken(headers http.Header) (string, error) {
+	return getAuthorizationKey(headers, "Bearer")
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	return getAuthorizationKey(headers, "ApiKey")
+}
+
+func getAuthorizationKey(headers http.Header, authScheme string) (string, error) {
 	authHeader := headers.Get("Authorization")
 
 	if authHeader == "" {
-		return "", fmt.Errorf("Authorization header missing in request")
+		return "", ErrNoAuthHeaderIncluded
 	}
 
 	splitStr := strings.Split(authHeader, " ")
 
-	if len(splitStr) < 2 || splitStr[0] != "Bearer" {
-		return "", fmt.Errorf("Malformed Authorization Header")
+	if len(splitStr) < 2 || splitStr[0] != authScheme {
+		return "", ErrMalformedHeader
 	}
 
 	return splitStr[1], nil

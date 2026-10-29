@@ -26,10 +26,6 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		Body string `json:"body"`
 	}
 
-	type response struct {
-		Chirp
-	}
-
 	userID, err := cfg.getUserIDFromBearerToken(w, r)
 
 	if err != nil {
@@ -67,19 +63,30 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, response{
-		Chirp: Chirp{
-			ID:        chirp.ID,
-			CreatedAt: chirp.CreatedAt,
-			UpdatedAt: chirp.UpdatedAt,
-			Body:      chirp.Body,
-			UserID:    chirp.UserID,
-		},
+	respondWithJSON(w, http.StatusCreated, Chirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
 	})
 }
 
 func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	dbChirps, err := cfg.db.GetChirps(r.Context())
+	userID, err := getAuthorIDFromRequest(r)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Author ID", err)
+		return
+	}
+
+	var dbChirps []database.Chirp
+
+	if userID != uuid.Nil {
+		dbChirps, err = cfg.db.GetChirpsForUser(r.Context(), userID)
+	} else {
+		dbChirps, err = cfg.db.GetChirps(r.Context())
+	}
 
 	if err != nil {
 		log.Printf("Could not fetch all chirps: %v\n", err)
@@ -103,10 +110,6 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Request) {
-	type response struct {
-		Chirp
-	}
-
 	chirpIDStr := r.PathValue("chirpID")
 	chirpID, err := uuid.Parse(chirpIDStr)
 
@@ -129,14 +132,12 @@ func (cfg *apiConfig) handlerGetSingleChirp(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, response{
-		Chirp: Chirp{
-			ID:        dbChirp.ID,
-			CreatedAt: dbChirp.CreatedAt,
-			UpdatedAt: dbChirp.UpdatedAt,
-			Body:      dbChirp.Body,
-			UserID:    dbChirp.UserID,
-		},
+	respondWithJSON(w, http.StatusOK, Chirp{
+		ID:        dbChirp.ID,
+		CreatedAt: dbChirp.CreatedAt,
+		UpdatedAt: dbChirp.UpdatedAt,
+		Body:      dbChirp.Body,
+		UserID:    dbChirp.UserID,
 	})
 }
 
@@ -181,6 +182,22 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 	}
 
 	respondWithJSON(w, http.StatusNoContent, nil)
+}
+
+func getAuthorIDFromRequest(r *http.Request) (uuid.UUID, error) {
+	userIDStr := r.URL.Query().Get("author_id")
+
+	if userIDStr == "" {
+		return uuid.Nil, nil
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return userID, nil
 }
 
 func validateChirp(body string) (string, error) {

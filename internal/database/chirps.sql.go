@@ -126,6 +126,8 @@ FROM
     chirps
 WHERE
     user_id = $1
+ORDER BY
+    created_at ASC
 `
 
 func (q *Queries) GetChirpsForUser(ctx context.Context, userID uuid.UUID) ([]Chirp, error) {
