@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -80,12 +81,20 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ordering := getSortingFromRequest(r)
+
 	var dbChirps []database.Chirp
 
 	if userID != uuid.Nil {
 		dbChirps, err = cfg.db.GetChirpsForUser(r.Context(), userID)
 	} else {
 		dbChirps, err = cfg.db.GetChirps(r.Context())
+	}
+
+	if ordering == "asc" {
+		sort.Slice(dbChirps, func(i, j int) bool { return dbChirps[i].CreatedAt.Before(dbChirps[j].CreatedAt) })
+	} else {
+		sort.Slice(dbChirps, func(i, j int) bool { return dbChirps[i].CreatedAt.After(dbChirps[j].CreatedAt) })
 	}
 
 	if err != nil {
@@ -198,6 +207,22 @@ func getAuthorIDFromRequest(r *http.Request) (uuid.UUID, error) {
 	}
 
 	return userID, nil
+}
+
+func getSortingFromRequest(r *http.Request) string {
+	sort := r.URL.Query().Get("sort")
+
+	if sort == "" {
+		return "asc"
+	}
+
+	sort = strings.ToLower(sort)
+
+	if sort != "asc" && sort != "desc" {
+		return "asc"
+	}
+
+	return sort
 }
 
 func validateChirp(body string) (string, error) {
