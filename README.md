@@ -106,10 +106,10 @@ will retrieve the logo.png file located in the assets directory in the project.
 - Admin base: `http://localhost:8080/admin/...`
 
 
-API Endpoints
+API Endpoints\
 
 
-**Authentication**
+**Authentication**\
 
 
 *Login*
@@ -129,7 +129,7 @@ Request Body
 }
 ```
 
-*Note* - In the response to this request a JWT / access token will be return as well as a refresh token. The JWT will live for only an hour.
+*Note* - In the response to this request a JWT / access token will be return as well as a refresh token. The JWT will live for only an hour.\
 
 
 *Refresh*
