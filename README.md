@@ -64,7 +64,7 @@ If you modify anything in `sql/queries` be sure to run the command above to gene
 Install the latest version of this repo
 
 ```sh
-go install github.com/Lilrosco/gator@latest
+go install github.com/Lilrosco/chirpy@latest
 ```
 
 ## Environment File
@@ -105,9 +105,12 @@ will retrieve the logo.png file located in the assets directory in the project.
 - API base: `http://localhost:8080/api/...`
 - Admin base: `http://localhost:8080/admin/...`
 
+
 API Endpoints
 
+
 **Authentication**
+
 
 *Login*
 
@@ -128,6 +131,7 @@ Request Body
 
 *Note* - In the response to this request a JWT / access token will be return as well as a refresh token. The JWT will live for only an hour.
 
+
 *Refresh*
 
 Supports - `POST`
@@ -142,6 +146,7 @@ Headers - Authorization: Bearer {refreshToken}
 
 *Note* - You will get a new access token that will live for another hour.
 
+
 *Revoke*
 
 Supports - `POST`
@@ -155,6 +160,7 @@ Headers - Authorization: Bearer {refreshToken}
 ```
 
 *Note* - This will invalidate the refresh token. Effectively terminating the logged in user's session.
+
 
 **Users**
 
@@ -185,6 +191,7 @@ Request Body
   "password": "losPollosHermanos"
 }
 ```
+
 
 **Chirps**
 
